@@ -12,7 +12,6 @@ const navigation = [
   { name: 'Tambah Transaksi', href: '/dashboard/add', icon: Plus },
   { name: 'Riwayat Transaksi', href: '/dashboard/history', icon: History },
   { name: 'Pendapatan Anggota', href: '/dashboard/members', icon: Users },
-  { name: 'Pengaturan Harga', href: '/dashboard/prices', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -32,7 +31,7 @@ export function Sidebar() {
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 text-white">
       <div className="flex h-16 items-center justify-center border-b border-slate-800">
-        <h1 className="text-xl font-bold">Carry/Raid Tracker</h1>
+        <h1 className="text-xl font-bold">RecehSHOPP</h1>
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navigation.map((item) => {

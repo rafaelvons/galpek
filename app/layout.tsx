@@ -7,7 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Carry/Raid Tracker',
+  title: 'RecehSHOPP',
   description: 'Sistem pencatatan dan pembagian hasil carry/raid',
 };
 
