@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Plus, History, Users, LogOut } from 'lucide-react';
+import { Home, Plus, History, Users, Settings, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { signOut } from '@/lib/supabase/auth';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,7 @@ const navigation = [
   { name: 'Tambah Transaksi', href: '/dashboard/add', icon: Plus },
   { name: 'Riwayat Transaksi', href: '/dashboard/history', icon: History },
   { name: 'Pendapatan Anggota', href: '/dashboard/members', icon: Users },
+  { name: 'Pengaturan Harga', href: '/dashboard/prices', icon: Settings },
 ];
 
 export function Sidebar() {
