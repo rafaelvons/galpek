@@ -79,25 +79,25 @@ export default function MembersPage() {
     
   }, [selectedMemberId, members]); // Jalankan ulang jika ID atau list anggota berubah
 
-  // 3. 💡 FUNGSI BARU: Mengambil dari tabel 'transactions'
-  async function fetchMemberHistory(memberName: string) {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id, activity_name, date, total_amount, per_person')
-        // Gunakan filter .contains() untuk mencari NAMA di dalam array 'members'
-        .contains('members', [memberName]) 
-        .order('date', { ascending: false });
+async function fetchMemberHistory(memberName: string) {
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id, activity_name, date, total_amount, per_person')
+        // Gunakan filter .contains() untuk mencari NAMA di dalam array 'members'
+        .contains('members', [memberName]) 
+        // 💡 PERUBAHAN: Urutkan berdasarkan 'created_at' (kapan dibuat)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      if (data) {
-        setMemberHistory(data as MemberHistory[]);
-      }
-    } catch (error) {
-      console.error('Error fetching member history:', error);
-    }
-  }
+      if (error) throw error;
+      
+      if (data) {
+        setMemberHistory(data as MemberHistory[]);
+      }
+    } catch (error) {
+      console.error('Error fetching member history:', error);
+    }
+  }
 
   // 4. 💡 BERUBAH: Fungsi statistik sekarang menggunakan 'memberHistory'
   const getActivityStats = () => {

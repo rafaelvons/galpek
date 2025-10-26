@@ -31,19 +31,20 @@ export default function HistoryPage() {
   }, []);
 
   async function fetchTransactions() {
-    try {
-      const { data } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('date', { ascending: false });
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        // 💡 PERUBAHAN: Urutkan berdasarkan 'created_at' (kapan dibuat)
+        .order('created_at', { ascending: false }); 
 
-      if (data) setTransactions(data);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+      if (data) setTransactions(data);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleDelete(id: string) {
     if (!confirm('Yakin ingin menghapus transaksi ini?')) return;
