@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Plus, Download } from 'lucide-react';
 import Link from 'next/link';
 import * as XLSX from 'xlsx'; // <- untuk export Excel
-import { SyncMembersButton } from "@/components/ui/SyncMembersButton";
 
 interface Member {
   id: string;
