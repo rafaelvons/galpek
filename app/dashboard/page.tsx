@@ -9,8 +9,6 @@ import Link from 'next/link';
 import * as XLSX from 'xlsx'; // <- untuk export Excel
 import { SyncMembersButton } from "@/components/ui/SyncMembersButton";
 
-
-
 interface Member {
   id: string;
   name: string;
@@ -155,10 +153,9 @@ export default function DashboardPage() {
               Tambah Transaksi
             </Button>
           </Link>
-         <SyncMembersButton />
         </div>
       </div>
-      
+
       <div className="grid gap-6 md:grid-cols-3">
         {members.map((member) => (
           <Card key={member.id}>
