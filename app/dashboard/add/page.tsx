@@ -27,6 +27,7 @@ import {
   CommandEmpty,
   CommandGroup,
 } from "@/components/ui/command";
+import { createClient } from "@supabase/supabase-js";
 
 const ACTIVITIES = [
   "1M Coin - Fish it",
