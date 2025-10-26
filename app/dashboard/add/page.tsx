@@ -115,7 +115,6 @@ const ACTIVITIES = [
   "Ito Ito No Mi ( GPO / Grand Piece Online)"
 ];
 
-<<<<<<< HEAD
 // 💰 Daftar harga otomatis — bisa kamu ubah kapan aja
 const ACTIVITY_PRICES: Record<string, number> = {
   "1M Coin - Fish it": 21560,
@@ -204,16 +203,10 @@ const ACTIVITY_PRICES: Record<string, number> = {
   "Ito Ito No Mi ( GPO / Grand Piece Online)": 8800
 };
 
-=======
->>>>>>> b81b0c9e66c270a2e15b8ae2258afcb517b3c182
 export default function AddTransactionPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-<<<<<<< HEAD
-=======
-
->>>>>>> b81b0c9e66c270a2e15b8ae2258afcb517b3c182
   const [allMembers, setAllMembers] = useState<{ id: string; name: string }[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(true);
 
@@ -232,21 +225,13 @@ export default function AddTransactionPage() {
   });
 
   useEffect(() => {
-<<<<<<< HEAD
     async function fetchMembers() {
       setIsMembersLoading(true);
       const { data, error } = await supabase
-=======
-    async function fetchData() {
-      setIsMembersLoading(true);
-
-      const { data: membersData, error: membersError } = await supabase
->>>>>>> b81b0c9e66c270a2e15b8ae2258afcb517b3c182
         .from('members')
         .select('id, name')
         .order('name', { ascending: true });
 
-<<<<<<< HEAD
       if (error) {
         toast({
           title: 'Error memuat anggota',
@@ -260,40 +245,6 @@ export default function AddTransactionPage() {
     }
 
     fetchMembers();
-=======
-      if (membersError) {
-        toast({
-          title: 'Error memuat anggota',
-          description: membersError.message,
-          variant: 'destructive',
-        });
-      } else {
-        setAllMembers(membersData || []);
-      }
-
-      const { data: pricesData, error: pricesError } = await supabase
-        .from('activity_prices')
-        .select('activity_name, unit_price');
-
-      if (pricesError) {
-        toast({
-          title: 'Error memuat harga',
-          description: pricesError.message,
-          variant: 'destructive',
-        });
-      } else {
-        const pricesMap: { [key: string]: number } = {};
-        pricesData?.forEach((price) => {
-          pricesMap[price.activity_name] = price.unit_price;
-        });
-        setActivityPrices(pricesMap);
-      }
-
-      setIsMembersLoading(false);
-    }
-
-    fetchData();
->>>>>>> b81b0c9e66c270a2e15b8ae2258afcb517b3c182
   }, [toast]);
 
   const handleMemberToggle = (member: string) => {
@@ -337,15 +288,6 @@ export default function AddTransactionPage() {
     return total / split;
   };
 
-  const handleActivityChange = (value: string) => {
-    // 🔹 Kalau aktivitas dipilih, otomatis isi harga sesuai daftar ACTIVITY_PRICES
-    const price = ACTIVITY_PRICES[value] || '';
-    setFormData((prev) => ({
-      ...prev,
-      activity_name: value,
-      total_amount: price.toString(),
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
