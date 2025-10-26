@@ -10,9 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Settings } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import {
   Popover,
@@ -27,8 +26,8 @@ import {
   CommandEmpty,
   CommandGroup,
 } from "@/components/ui/command";
-import { createClient } from "@supabase/supabase-js";
 
+// Daftar aktivitas dan harga
 const ACTIVITIES = [
   "1M Coin - Fish it",
   "Big Shiny Elshark Gran Maja - Fish It!",
@@ -116,7 +115,6 @@ const ACTIVITIES = [
   "Ito Ito No Mi ( GPO / Grand Piece Online)"
 ];
 
-// 💰 Daftar harga otomatis — bisa kamu ubah kapan aja
 const ACTIVITY_PRICES: Record<string, number> = {
   "1M Coin - Fish it": 21560,
   "Big Shiny Elshark Gran Maja - Fish It!": 154000,
@@ -211,7 +209,6 @@ export default function AddTransactionPage() {
   const [allMembers, setAllMembers] = useState<{ id: string; name: string }[]>([]);
   const [isMembersLoading, setIsMembersLoading] = useState(true);
 
-  const [activityPrices, setActivityPrices] = useState<{ [key: string]: number }>({});
   const [selectedActivityPrice, setSelectedActivityPrice] = useState<number>(0);
 
   const [formData, setFormData] = useState({
@@ -225,6 +222,7 @@ export default function AddTransactionPage() {
     date: new Date().toISOString().split('T')[0],
   });
 
+  // Ambil semua anggota
   useEffect(() => {
     async function fetchMembers() {
       setIsMembersLoading(true);
@@ -248,17 +246,17 @@ export default function AddTransactionPage() {
     fetchMembers();
   }, [toast]);
 
-  const handleMemberToggle = (member: string) => {
+  const handleMemberToggle = (memberId: string) => {
     setFormData((prev) => ({
       ...prev,
-      selected_members: prev.selected_members.includes(member)
-        ? prev.selected_members.filter((m) => m !== member)
-        : [...prev.selected_members, member],
+      selected_members: prev.selected_members.includes(memberId)
+        ? prev.selected_members.filter((id) => id !== memberId)
+        : [...prev.selected_members, memberId],
     }));
   };
 
   const handleActivityChange = (value: string) => {
-    const unitPrice = activityPrices[value] || 0;
+    const unitPrice = ACTIVITY_PRICES[value] || 0;
     const quantity = parseInt(formData.quantity) || 1;
     const totalAmount = unitPrice * quantity;
 
@@ -272,8 +270,7 @@ export default function AddTransactionPage() {
 
   const handleQuantityChange = (value: string) => {
     const quantity = parseInt(value) || 1;
-    const unitPrice = selectedActivityPrice;
-    const totalAmount = unitPrice * quantity;
+    const totalAmount = selectedActivityPrice * quantity;
 
     setFormData((prev) => ({
       ...prev,
@@ -283,12 +280,10 @@ export default function AddTransactionPage() {
   };
 
   const calculatePerPerson = () => {
-    const total =
-      (parseFloat(formData.total_amount) || 0) * (parseInt(formData.count) || 1);
+    const total = (parseFloat(formData.total_amount) || 0) * (parseInt(formData.count) || 1);
     const split = parseInt(formData.split_type) || 1;
     return total / split;
   };
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -306,12 +301,13 @@ export default function AddTransactionPage() {
       }
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error('User tidak terautentikasi');
 
       const totalCalculated =
         (parseFloat(formData.total_amount) || 0) * (parseInt(formData.count) || 1);
       const perPerson = calculatePerPerson();
 
+      // Insert transaksi
       const { data: transaction, error: transactionError } = await supabase
         .from('transactions')
         .insert({
@@ -330,30 +326,22 @@ export default function AddTransactionPage() {
 
       if (transactionError) throw transactionError;
 
-      const { data: membersList } = await supabase
-        .from('members')
-        .select('id, name')
-        .in('name', formData.selected_members);
+      // Insert member_transactions langsung pakai UUID
+      const memberTransactions = formData.selected_members.map((memberId) => ({
+        member_id: memberId,
+        transaction_id: transaction.id,
+        amount: perPerson,
+      }));
 
-      if (membersList) {
-        const memberTransactions = membersList.map((member) => ({
-          member_id: member.id,
-          transaction_id: transaction.id,
-          amount: perPerson,
-        }));
+      const { error: mtError } = await supabase
+        .from('member_transactions')
+        .insert(memberTransactions);
 
-        const { error: mtError } = await supabase
-          .from('member_transactions')
-          .insert(memberTransactions);
-
-        if (mtError) throw mtError;
-      }
+      if (mtError) throw mtError;
 
       toast({
         title: 'Transaksi berhasil ditambahkan',
-        description: `Rp ${totalCalculated.toLocaleString(
-          'id-ID'
-        )} telah dibagi ke ${formData.selected_members.length} anggota`,
+        description: `Rp ${totalCalculated.toLocaleString('id-ID')} telah dibagi ke ${formData.selected_members.length} anggota`,
       });
 
       router.push('/dashboard');
@@ -390,7 +378,6 @@ export default function AddTransactionPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Aktivitas */}
-            {/* Aktivitas (searchable) */}
             <div className="space-y-2">
               <Label htmlFor="activity">Nama Aktivitas</Label>
               <Popover>
@@ -400,9 +387,7 @@ export default function AddTransactionPage() {
                     role="combobox"
                     className="w-full justify-between"
                   >
-                    {formData.activity_name
-                      ? formData.activity_name
-                      : "Pilih atau ketik aktivitas"}
+                    {formData.activity_name || "Pilih atau ketik aktivitas"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
@@ -415,13 +400,7 @@ export default function AddTransactionPage() {
                           <CommandItem
                             key={activity}
                             value={activity}
-                            onSelect={() => {
-                              setFormData((prev) => ({
-                                ...prev,
-                                activity_name: activity,
-                                total_amount: ACTIVITY_PRICES[activity]?.toString() || "",
-                              }));
-                            }}
+                            onSelect={() => handleActivityChange(activity)}
                           >
                             {activity}
                           </CommandItem>
@@ -433,9 +412,7 @@ export default function AddTransactionPage() {
               </Popover>
             </div>
 
-
-
-            {/* Harga otomatis */}
+            {/* Harga */}
             <div className="space-y-2">
               <Label htmlFor="total">Harga per Aktivitas (Rp)</Label>
               <Input
@@ -449,7 +426,7 @@ export default function AddTransactionPage() {
               />
             </div>
 
-            {/* Jumlah kali */}
+            {/* Jumlah */}
             <div className="space-y-2">
               <Label htmlFor="count">Jumlah (kali)</Label>
               <Input
@@ -457,9 +434,7 @@ export default function AddTransactionPage() {
                 type="number"
                 min="1"
                 value={formData.count}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, count: e.target.value }))
-                }
+                onChange={(e) => handleQuantityChange(e.target.value)}
                 required
               />
             </div>
@@ -516,8 +491,8 @@ export default function AddTransactionPage() {
                     >
                       <Checkbox
                         id={member.id}
-                        checked={formData.selected_members.includes(member.name)}
-                        onCheckedChange={() => handleMemberToggle(member.name)}
+                        checked={formData.selected_members.includes(member.id)}
+                        onCheckedChange={() => handleMemberToggle(member.id)}
                       />
                       <Label htmlFor={member.id} className="font-normal cursor-pointer truncate">
                         {member.name}

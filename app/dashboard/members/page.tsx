@@ -60,28 +60,29 @@ export default function MembersPage() {
   }
 
   async function fetchMemberTransactions(memberId: string) {
-    try {
-      const { data } = await supabase
-        .from('member_transactions')
-        .select(`
-          transaction_id,
-          amount,
-          transactions (
-            activity_name,
-            date,
-            total_amount
-          )
-        `)
-        .eq('member_id', memberId)
-        .order('created_at', { ascending: false });
+  try {
+    const { data } = await supabase
+      .from('member_transactions')
+      .select(`
+        transaction_id,
+        amount,
+        transactions (
+          activity_name,
+          date,
+          total_amount
+        )
+      `)
+      .eq('member_id::uuid', memberId)  // <- cast ke uuid
+      .order('created_at', { ascending: false });
 
-      if (data) {
-        setMemberTransactions(data as any);
-      }
-    } catch (error) {
-      console.error('Error fetching member transactions:', error);
+    if (data) {
+      setMemberTransactions(data as any);
     }
+  } catch (error) {
+    console.error('Error fetching member transactions:', error);
   }
+}
+
 
   const getActivityStats = () => {
     const stats: { [key: string]: { count: number; total: number } } = {};
