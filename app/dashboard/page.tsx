@@ -105,10 +105,11 @@ export default function DashboardPage() {
     rows.push([
       new Date(t.date).toLocaleDateString("id-ID"),
       t.activity_name,
-      t.total_amount,
-      t.per_person,
+      String(t.total_amount),
+      String(t.per_person),
       memberNames,
     ]);
+
   });
 
   const csv =
