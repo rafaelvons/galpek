@@ -21,30 +21,42 @@ interface Transaction {
   created_at: string;
 }
 
+interface Member {
+  id: string;
+  name: string;
+}
+
 export default function HistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
+    fetchMembers();
     fetchTransactions();
   }, []);
 
-  async function fetchTransactions() {
-    try {
-      const { data } = await supabase
-        .from('transactions')
-        .select('*')
-        // 💡 PERUBAHAN: Urutkan berdasarkan 'created_at' (kapan dibuat)
-        .order('created_at', { ascending: false }); 
+  async function fetchMembers() {
+    const { data, error } = await supabase.from("members").select("id, name");
 
-      if (data) setTransactions(data);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+    if (!error) setMembers(data || []);
+  }
+
+  async function fetchTransactions() {
+    try {
+      const { data } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (data) setTransactions(data);
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleDelete(id: string) {
     if (!confirm('Yakin ingin menghapus transaksi ini?')) return;
@@ -74,9 +86,12 @@ export default function HistoryPage() {
 
   const getSplitLabel = (split: number) => {
     if (split === 1) return 'Sendiri';
-    if (split === 2) return 'Bagi 2';
-    if (split === 3) return 'Bagi 3';
     return `Bagi ${split}`;
+  };
+
+  // 🔥 Convert UUID ke Nama
+  const idToName = (id: string) => {
+    return members.find((m) => m.id === id)?.name || "Unknown";
   };
 
   if (loading) {
@@ -114,46 +129,55 @@ export default function HistoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
+                  {transactions.map((t) => (
+                    <TableRow key={t.id}>
                       <TableCell className="whitespace-nowrap">
-                        {new Date(transaction.date).toLocaleDateString('id-ID', {
+                        {new Date(t.date).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
                         })}
                       </TableCell>
-                      <TableCell className="font-medium">{transaction.activity_name}</TableCell>
+
+                      <TableCell className="font-medium">{t.activity_name}</TableCell>
+
                       <TableCell className="text-right">
-                        Rp {transaction.total_amount.toLocaleString('id-ID')}
+                        Rp {t.total_amount.toLocaleString('id-ID')}
                       </TableCell>
+
                       <TableCell>
-                        <Badge variant="secondary">{getSplitLabel(transaction.split_type)}</Badge>
+                        <Badge variant="secondary">{getSplitLabel(t.split_type)}</Badge>
                       </TableCell>
+
                       <TableCell className="text-right font-medium text-blue-600">
-                        Rp {transaction.per_person.toLocaleString('id-ID')}
+                        Rp {t.per_person.toLocaleString('id-ID')}
                       </TableCell>
+
+                      {/* 🔥 Tampilkan nama, bukan UUID */}
                       <TableCell>
-                        <div className="flex gap-1">
-                          {transaction.members.map((member) => (
-                            <Badge key={member} variant="outline" className="text-xs">
-                              {member}
+                        <div className="flex gap-1 flex-wrap">
+                          {t.members.map((id) => (
+                            <Badge key={id} variant="outline" className="text-xs">
+                              {idToName(id)}
                             </Badge>
                           ))}
                         </div>
                       </TableCell>
+
                       <TableCell className="max-w-xs truncate text-sm text-slate-600">
-                        {transaction.notes || '-'}
+                        {t.notes || '-'}
                       </TableCell>
+
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(transaction.id)}
+                          onClick={() => handleDelete(t.id)}
                         >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>

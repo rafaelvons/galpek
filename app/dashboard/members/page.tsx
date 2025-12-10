@@ -6,180 +6,149 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-// Interface untuk data anggota dari tabel 'members'
 interface Member {
   id: string;
   name: string;
-  total_earned: number;
-  total_transactions: number;
 }
 
-// 💡 BERUBAH: Interface untuk riwayat transaksi
-// Kita ambil langsung dari tabel 'transactions'
-interface MemberHistory {
+interface Transaction {
   id: string;
   activity_name: string;
   date: string;
   total_amount: number;
-  per_person: number; // Menggunakan per_person, bukan amount
+  per_person: number;
+  members: string[];
 }
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  
-  // 💡 BERUBAH: State untuk menyimpan data dari tabel 'transactions'
-  const [memberHistory, setMemberHistory] = useState<MemberHistory[]>([]);
-  
   const [loading, setLoading] = useState(true);
 
-  // 1. Ambil data semua anggota saat halaman dimuat
   useEffect(() => {
-    async function fetchMembers() {
-      try {
-        const { data } = await supabase
-          .from('members')
-          .select('*')
-          .order('name');
+    loadAllData();
+  }, []);
 
-        if (data) {
-          setMembers(data);
-          // Set anggota pertama sebagai default
-          if (data.length > 0 && !selectedMemberId) {
-            setSelectedMemberId(data[0].id);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching members:', error);
-      } finally {
-        setLoading(false);
+  async function loadAllData() {
+    try {
+      // Ambil semua member
+      const { data: membersData } = await supabase
+        .from("members")
+        .select("id, name")
+        .order("name");
+
+      // Ambil semua transaksi
+      const { data: transactionData } = await supabase
+        .from("transactions")
+        .select("id, activity_name, date, total_amount, per_person, members")
+        .order("created_at", { ascending: false });
+
+      if (membersData) setMembers(membersData);
+      if (transactionData) setTransactions(transactionData);
+
+      if (membersData && membersData.length > 0) {
+        setSelectedMemberId(membersData[0].id); // default pilih pertama
       }
+
+    } finally {
+      setLoading(false);
     }
-    
-    fetchMembers();
-  }, []); // Hanya jalan sekali
-
-  // 2. 💡 BERUBAH: Ambil data transaksi SETIAP KALI anggota yang dipilih berubah
-  useEffect(() => {
-    // Pastikan kita punya ID dan daftar anggota sudah dimuat
-    if (!selectedMemberId || members.length === 0) {
-      return;
-    }
-
-    // Cari nama anggota berdasarkan ID yang dipilih
-    const memberName = members.find((m) => m.id === selectedMemberId)?.name;
-
-    if (!memberName) {
-      console.error("Tidak bisa menemukan nama anggota untuk ID:", selectedMemberId);
-      return;
-    }
-
-    // Panggil fungsi baru untuk fetch data
-    fetchMemberHistory(memberName);
-    
-  }, [selectedMemberId, members]); // Jalankan ulang jika ID atau list anggota berubah
-
-async function fetchMemberHistory(memberName: string) {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('id, activity_name, date, total_amount, per_person')
-        // Gunakan filter .contains() untuk mencari NAMA di dalam array 'members'
-        .contains('members', [memberName]) 
-        // 💡 PERUBAHAN: Urutkan berdasarkan 'created_at' (kapan dibuat)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      if (data) {
-        setMemberHistory(data as MemberHistory[]);
-      }
-    } catch (error) {
-      console.error('Error fetching member history:', error);
-    }
-  }
-
-  // 4. 💡 BERUBAH: Fungsi statistik sekarang menggunakan 'memberHistory'
-  const getActivityStats = () => {
-    const stats: { [key: string]: { count: number; total: number } } = {};
-
-    memberHistory.forEach((mt) => {
-      const activityName = mt.activity_name;
-      if (!stats[activityName]) {
-        stats[activityName] = { count: 0, total: 0 };
-      }
-      stats[activityName].count += 1;
-      // Gunakan 'per_person' untuk total pendapatan
-      stats[activityName].total += mt.per_person; 
-    });
-
-    return Object.entries(stats)
-      .map(([name, data]) => ({ name, ...data }))
-      .sort((a, b) => b.total - a.total);
-  };
-
-  if (loading) {
-    return <div>Loading...</div>;
   }
 
-  const currentMember = members.find((m) => m.id === selectedMemberId);
-  const activityStats = getActivityStats();
+  // ================================
+  // COMPUTE TOTAL PER MEMBER
+  // ================================
+  const computedMembers = members.map((member) => {
+    const related = transactions.filter((t) => t.members.includes(member.id));
+
+    const totalEarned = related.reduce((sum, t) => sum + t.per_person, 0);
+    const totalTransactions = related.length;
+
+    return {
+      ...member,
+      totalEarned,
+      totalTransactions,
+    };
+  });
+
+  // detail per member yang dipilih
+  const selectedMember = computedMembers.find(m => m.id === selectedMemberId);
+  const selectedHistory = transactions.filter(t => t.members.includes(selectedMemberId!));
+
+  // statistik aktivitas
+  const activityStats = (() => {
+    const stats: Record<string, { count: number; total: number }> = {};
+
+    selectedHistory.forEach((t) => {
+      if (!stats[t.activity_name]) {
+        stats[t.activity_name] = { count: 0, total: 0 };
+      }
+      stats[t.activity_name].count++;
+      stats[t.activity_name].total += t.per_person;
+    });
+
+    return Object.entries(stats).map(([name, s]) => ({
+      name,
+      count: s.count,
+      total: s.total,
+    }));
+  })();
+
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Pendapatan Anggota</h1>
-        <p className="text-slate-600 mt-1">Detail pendapatan per anggota dan aktivitas</p>
+        <h1 className="text-3xl font-bold">Pendapatan Anggota</h1>
+        <p className="text-slate-600">Detail pendapatan per anggota berdasarkan transaksi</p>
       </div>
 
-      {/* Tampilan Kartu Anggota (Tidak Berubah) */}
+      {/* MEMBER LIST */}
       <div className="grid gap-6 md:grid-cols-3">
-        {members.map((member) => (
+        {computedMembers.map((member) => (
           <Card
             key={member.id}
-            className={`cursor-pointer transition-all ${
-              selectedMemberId === member.id
-                ? 'ring-2 ring-blue-500 shadow-lg'
-                : 'hover:shadow-md'
-            }`}
             onClick={() => setSelectedMemberId(member.id)}
+            className={`cursor-pointer transition-all ${
+              selectedMemberId === member.id ? "ring-2 ring-blue-500 shadow-lg" : "hover:shadow-md"
+            }`}
           >
             <CardHeader>
-              <CardTitle className="text-lg">{member.name}</CardTitle>
+              <CardTitle>{member.name}</CardTitle>
               <CardDescription>Total Pendapatan</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
-                <p className="text-3xl font-bold text-blue-600">
-                  Rp {member.total_earned.toLocaleString('id-ID')}
-                </p>
-                <p className="text-sm text-slate-600">
-                  {member.total_transactions} transaksi
-                </p>
-              </div>
+              <p className="text-3xl font-bold text-blue-600">
+                Rp {member.totalEarned.toLocaleString("id-ID")}
+              </p>
+              <p className="text-sm text-slate-600">
+                {member.totalTransactions} transaksi
+              </p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Tampilan Detail (Tabs) */}
-      {currentMember && (
+      {/* DETAILS */}
+      {selectedMember && (
         <Card>
           <CardHeader>
-            <CardTitle>Detail: {currentMember.name}</CardTitle>
-            <CardDescription>Riwayat dan statistik pendapatan</CardDescription>
+            <CardTitle>Detail: {selectedMember.name}</CardTitle>
+            <CardDescription>Riwayat & statistik aktivitas</CardDescription>
           </CardHeader>
+
           <CardContent>
-            <Tabs defaultValue="history" className="w-full">
+            <Tabs defaultValue="history">
               <TabsList>
                 <TabsTrigger value="history">Riwayat Transaksi</TabsTrigger>
                 <TabsTrigger value="stats">Statistik Aktivitas</TabsTrigger>
               </TabsList>
 
-              {/* 💡 BERUBAH: Tab Riwayat Transaksi */}
+              {/* TAB RIWAYAT */}
               <TabsContent value="history" className="mt-4">
-                {memberHistory.length === 0 ? (
-                  <p className="text-center text-slate-500 py-8">Belum ada transaksi</p>
+                {selectedHistory.length === 0 ? (
+                  <p className="text-center text-slate-500 py-6">Tidak ada transaksi</p>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -191,24 +160,15 @@ async function fetchMemberHistory(memberName: string) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {memberHistory.map((mt) => (
-                        <TableRow key={mt.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {new Date(mt.date).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
+                      {selectedHistory.map((t) => (
+                        <TableRow key={t.id}>
+                          <TableCell>{new Date(t.date).toLocaleDateString("id-ID")}</TableCell>
+                          <TableCell>{t.activity_name}</TableCell>
+                          <TableCell className="text-right">
+                            Rp {t.total_amount.toLocaleString("id-ID")}
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {mt.activity_name}
-                          </TableCell>
-                          <TableCell className="text-right text-slate-600">
-                            Rp {mt.total_amount.toLocaleString('id-ID')}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-blue-600">
-                            {/* Gunakan 'per_person' */}
-                            Rp {mt.per_person.toLocaleString('id-ID')} 
+                          <TableCell className="text-right text-blue-600">
+                            Rp {t.per_person.toLocaleString("id-ID")}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -217,10 +177,10 @@ async function fetchMemberHistory(memberName: string) {
                 )}
               </TabsContent>
 
-              {/* 💡 BERUBAH: Tab Statistik Aktivitas */}
+              {/* TAB STATISTIK */}
               <TabsContent value="stats" className="mt-4">
                 {activityStats.length === 0 ? (
-                  <p className="text-center text-slate-500 py-8">Belum ada data</p>
+                  <p className="text-center text-slate-500 py-6">Tidak ada data</p>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -228,19 +188,15 @@ async function fetchMemberHistory(memberName: string) {
                         <TableHead>Aktivitas</TableHead>
                         <TableHead className="text-right">Jumlah</TableHead>
                         <TableHead className="text-right">Total Pendapatan</TableHead>
-                        <TableHead className="text-right">Rata-rata</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {activityStats.map((stat) => (
                         <TableRow key={stat.name}>
-                          <TableCell className="font-medium">{stat.name}</TableCell>
+                          <TableCell>{stat.name}</TableCell>
                           <TableCell className="text-right">{stat.count}x</TableCell>
-                          <TableCell className="text-right font-semibold text-blue-600">
-                            Rp {stat.total.toLocaleString('id-ID')}
-                          </TableCell>
-                          <TableCell className="text-right text-slate-600">
-                            Rp {Math.round(stat.total / stat.count).toLocaleString('id-ID')}
+                          <TableCell className="text-right text-blue-600">
+                            Rp {stat.total.toLocaleString("id-ID")}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -252,6 +208,7 @@ async function fetchMemberHistory(memberName: string) {
           </CardContent>
         </Card>
       )}
+
     </div>
   );
 }
